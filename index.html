@@ -73,6 +73,28 @@
             width: 100%;
             display: none;
         }
+        
+        /* Mobile fixes to prevent text selection */
+        * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        
+        html {
+            -webkit-tap-highlight-color: rgba(0,0,0,0);
+            -webkit-touch-callout: none;
+        }
+        
+        canvas {
+            touch-action: none;
+        }
+        
+        #mobileControls .controlBtn {
+            touch-action: manipulation;
+        }
+        
         .controlBtn {
             width: 60px;
             height: 60px;
@@ -109,7 +131,7 @@
         }
     </style>
 </head>
-<body>
+<body ontouchstart="">
     <div id="info">Pages: 0/3</div>
     <div id="static"></div>
     <button id="startButton">START GAME</button>
