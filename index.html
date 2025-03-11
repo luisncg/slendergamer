@@ -67,11 +67,63 @@
             font-size: 20px;
             cursor: pointer;
         }
-        #mobileControls {
+        
+        /* Joystick container */
+        #joystickContainer {
             position: absolute;
-            bottom: 20px;
+            bottom: 0;
+            left: 0;
             width: 100%;
+            height: 30%;
             display: none;
+        }
+        
+        /* Left joystick (movement) */
+        #leftJoystick {
+            position: absolute;
+            left: 20%;
+            bottom: 100px;
+            transform: translate(-50%, 0);
+            width: 120px;
+            height: 120px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+        
+        #leftStick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+        }
+        
+        /* Right joystick (camera) */
+        #rightJoystick {
+            position: absolute;
+            right: 20%;
+            bottom: 100px;
+            transform: translate(50%, 0);
+            width: 120px;
+            height: 120px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+        }
+        
+        #rightStick {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
         }
         
         /* Mobile fixes to prevent text selection */
@@ -90,45 +142,6 @@
         canvas {
             touch-action: none;
         }
-        
-        #mobileControls .controlBtn {
-            touch-action: manipulation;
-        }
-        
-        .controlBtn {
-            width: 60px;
-            height: 60px;
-            background-color: rgba(255,255,255,0.3);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            color: white;
-            user-select: none;
-        }
-        #upBtn {
-            position: absolute;
-            bottom: 80px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        #leftBtn {
-            position: absolute;
-            bottom: 20px;
-            left: calc(50% - 70px);
-        }
-        #downBtn {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        #rightBtn {
-            position: absolute;
-            bottom: 20px;
-            left: calc(50% + 70px);
-        }
     </style>
 </head>
 <body ontouchstart="">
@@ -146,11 +159,13 @@
         <button id="winRestartButton">PLAY AGAIN</button>
     </div>
     
-    <div id="mobileControls">
-        <div id="upBtn" class="controlBtn">↑</div>
-        <div id="leftBtn" class="controlBtn">←</div>
-        <div id="downBtn" class="controlBtn">↓</div>
-        <div id="rightBtn" class="controlBtn">→</div>
+    <div id="joystickContainer">
+        <div id="leftJoystick">
+            <div id="leftStick"></div>
+        </div>
+        <div id="rightJoystick">
+            <div id="rightStick"></div>
+        </div>
     </div>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -167,12 +182,28 @@
         let pagesCollected = 0;
         let isGameActive = false;
         let controls = {
-            forward: false,
-            backward: false,
-            left: false,
-            right: false
+            moveX: 0,
+            moveZ: 0,
+            lookX: 0
         };
         let isMobile = false;
+        
+        // Joystick variables
+        let leftJoystick = {
+            active: false,
+            baseX: 0,
+            baseY: 0,
+            stickX: 0,
+            stickY: 0
+        };
+        
+        let rightJoystick = {
+            active: false,
+            baseX: 0,
+            baseY: 0,
+            stickX: 0,
+            stickY: 0
+        };
         
         // Check if mobile device
         function checkMobile() {
@@ -184,7 +215,7 @@
             // Check if mobile
             isMobile = checkMobile();
             if (isMobile) {
-                document.getElementById('mobileControls').style.display = 'block';
+                document.getElementById('joystickContainer').style.display = 'block';
             }
             
             // Create scene
@@ -237,7 +268,7 @@
             
             // Mobile controls
             if (isMobile) {
-                setupMobileControls();
+                setupJoysticks();
             }
             
             // Resize handler
@@ -327,19 +358,19 @@
                 switch(event.code) {
                     case 'KeyW':
                     case 'ArrowUp':
-                        controls.forward = true;
+                        controls.moveZ = -1;
                         break;
                     case 'KeyA':
                     case 'ArrowLeft':
-                        controls.left = true;
+                        controls.moveX = -1;
                         break;
                     case 'KeyS':
                     case 'ArrowDown':
-                        controls.backward = true;
+                        controls.moveZ = 1;
                         break;
                     case 'KeyD':
                     case 'ArrowRight':
-                        controls.right = true;
+                        controls.moveX = 1;
                         break;
                 }
             });
@@ -350,19 +381,15 @@
                 switch(event.code) {
                     case 'KeyW':
                     case 'ArrowUp':
-                        controls.forward = false;
+                    case 'KeyS':
+                    case 'ArrowDown':
+                        controls.moveZ = 0;
                         break;
                     case 'KeyA':
                     case 'ArrowLeft':
-                        controls.left = false;
-                        break;
-                    case 'KeyS':
-                    case 'ArrowDown':
-                        controls.backward = false;
-                        break;
                     case 'KeyD':
                     case 'ArrowRight':
-                        controls.right = false;
+                        controls.moveX = 0;
                         break;
                 }
             });
@@ -381,79 +408,151 @@
             }
         }
         
-        // Set up mobile controls
-        function setupMobileControls() {
-            // Directional buttons
-            document.getElementById('upBtn').addEventListener('touchstart', function() {
-                controls.forward = true;
-            });
-            document.getElementById('upBtn').addEventListener('touchend', function() {
-                controls.forward = false;
+        // Set up joysticks for mobile
+        function setupJoysticks() {
+            // Get elements
+            const leftJoystickElem = document.getElementById('leftJoystick');
+            const leftStickElem = document.getElementById('leftStick');
+            const rightJoystickElem = document.getElementById('rightJoystick');
+            const rightStickElem = document.getElementById('rightStick');
+            
+            // Get base positions
+            const leftRect = leftJoystickElem.getBoundingClientRect();
+            leftJoystick.baseX = leftRect.left + leftRect.width / 2;
+            leftJoystick.baseY = leftRect.top + leftRect.height / 2;
+            
+            const rightRect = rightJoystickElem.getBoundingClientRect();
+            rightJoystick.baseX = rightRect.left + rightRect.width / 2;
+            rightJoystick.baseY = rightRect.top + rightRect.height / 2;
+            
+            // Left joystick (movement) touch events
+            leftJoystickElem.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                leftJoystick.active = true;
+                updateLeftJoystick(e.touches[0]);
             });
             
-            document.getElementById('leftBtn').addEventListener('touchstart', function() {
-                controls.left = true;
-            });
-            document.getElementById('leftBtn').addEventListener('touchend', function() {
-                controls.left = false;
-            });
-            
-            document.getElementById('downBtn').addEventListener('touchstart', function() {
-                controls.backward = true;
-            });
-            document.getElementById('downBtn').addEventListener('touchend', function() {
-                controls.backward = false;
-            });
-            
-            document.getElementById('rightBtn').addEventListener('touchstart', function() {
-                controls.right = true;
-            });
-            document.getElementById('rightBtn').addEventListener('touchend', function() {
-                controls.right = false;
-            });
-            
-            // Touch rotation
-            let lastTouchX = 0;
-            renderer.domElement.addEventListener('touchmove', function(event) {
-                if (!isGameActive || event.touches.length === 0) return;
-                
-                const touchX = event.touches[0].clientX;
-                
-                if (lastTouchX !== 0) {
-                    const movementX = touchX - lastTouchX;
-                    player.rotation.y -= movementX * 0.01;
-                    camera.rotation.y = player.rotation.y;
+            leftJoystickElem.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if (leftJoystick.active) {
+                    updateLeftJoystick(e.touches[0]);
                 }
+            });
+            
+            leftJoystickElem.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                leftJoystick.active = false;
+                // Reset joystick position
+                leftStickElem.style.transform = 'translate(-50%, -50%)';
+                // Reset controls
+                controls.moveX = 0;
+                controls.moveZ = 0;
+            });
+            
+            // Right joystick (camera) touch events
+            rightJoystickElem.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                rightJoystick.active = true;
+                updateRightJoystick(e.touches[0]);
+            });
+            
+            rightJoystickElem.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                if (rightJoystick.active) {
+                    updateRightJoystick(e.touches[0]);
+                }
+            });
+            
+            rightJoystickElem.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                rightJoystick.active = false;
+                // Reset joystick position
+                rightStickElem.style.transform = 'translate(-50%, -50%)';
+                // Reset rotation control
+                controls.lookX = 0;
+            });
+            
+            // Update joystick base positions on resize
+            window.addEventListener('resize', function() {
+                const leftRect = leftJoystickElem.getBoundingClientRect();
+                leftJoystick.baseX = leftRect.left + leftRect.width / 2;
+                leftJoystick.baseY = leftRect.top + leftRect.height / 2;
                 
-                lastTouchX = touchX;
+                const rightRect = rightJoystickElem.getBoundingClientRect();
+                rightJoystick.baseX = rightRect.left + rightRect.width / 2;
+                rightJoystick.baseY = rightRect.top + rightRect.height / 2;
             });
             
-            renderer.domElement.addEventListener('touchend', function() {
-                lastTouchX = 0;
-            });
-        }
-        
-        // Update player position
-        function updatePlayer() {
-            const direction = new THREE.Vector3();
-            
-            // Calculate movement direction
-            if (controls.forward) direction.z -= 1;
-            if (controls.backward) direction.z += 1;
-            if (controls.left) direction.x -= 1;
-            if (controls.right) direction.x += 1;
-            
-            // Normalize direction to prevent faster diagonal movement
-            if (direction.length() > 0) {
-                direction.normalize();
+            // Handle joystick updates
+            function updateLeftJoystick(touch) {
+                // Calculate joystick position
+                const maxDistance = leftRect.width / 2;
+                const dx = touch.clientX - leftJoystick.baseX;
+                const dy = touch.clientY - leftJoystick.baseY;
+                
+                // Calculate distance from center
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Normalize and apply max distance
+                const normalized = distance > maxDistance ? maxDistance / distance : 1;
+                
+                // Update stick position
+                const stickX = dx * normalized;
+                const stickY = dy * normalized;
+                
+                leftStickElem.style.transform = `translate(calc(-50% + ${stickX}px), calc(-50% + ${stickY}px))`;
+                
+                // Update controls (normalize to -1 to 1)
+                controls.moveX = stickX / maxDistance;
+                controls.moveZ = stickY / maxDistance;
             }
             
-            // Rotate direction based on player rotation
-            direction.applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+            function updateRightJoystick(touch) {
+                // Calculate joystick position
+                const maxDistance = rightRect.width / 2;
+                const dx = touch.clientX - rightJoystick.baseX;
+                
+                // Calculate distance from center
+                const distance = Math.abs(dx);
+                
+                // Normalize and apply max distance
+                const normalized = distance > maxDistance ? maxDistance / distance : 1;
+                
+                // Update stick position
+                const stickX = dx * normalized;
+                
+                rightStickElem.style.transform = `translate(calc(-50% + ${stickX}px), -50%)`;
+                
+                // Update rotation control (normalize to -1 to 1)
+                controls.lookX = -stickX / maxDistance; // Negative for correct direction
+            }
+        }
+        
+        // Update player position and rotation
+        function updatePlayer() {
+            // Update rotation from right joystick or mouse
+            if (isMobile) {
+                player.rotation.y += controls.lookX * 0.05;
+            }
             
-            // Apply movement
-            player.position.x += direction.x * player.speed;
-            player.position.z += direction.z * player.speed;
+            // Update camera rotation
+            camera.rotation.y = player.rotation.y;
+            
+            // Calculate movement direction
+            const direction = new THREE.Vector3(controls.moveX, 0, controls.moveZ);
+            
+            // Only apply movement if there's input
+            if (direction.length() > 0) {
+                // Normalize direction to prevent faster diagonal movement
+                direction.normalize();
+                
+                // Rotate direction based on player rotation
+                direction.applyEuler(new THREE.Euler(0, player.rotation.y, 0));
+                
+                // Apply movement
+                player.position.x += direction.x * player.speed;
+                player.position.z += direction.z * player.speed;
+            }
             
             // Keep player within bounds
             const maxRadius = 40;
