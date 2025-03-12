@@ -30,6 +30,21 @@
             opacity: 0;
             transition: opacity 0.5s;
         }
+
+    /* Add the crosshair CSS here */
+    #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.5);
+        pointer-events: none;
+        display: none; /* Initially hidden, shown when game starts */
+    }
+        
         #startButton {
             position: absolute;
             top: 50%;
@@ -147,6 +162,7 @@
 <body ontouchstart="">
     <div id="info">Pages: 0/3</div>
     <div id="static"></div>
+    <div id="crosshair"></div>
     <button id="startButton">START GAME</button>
     
     <div id="gameOverScreen">
@@ -693,7 +709,7 @@ function updatePlayer() {
             isGameActive = true;
             document.getElementById('startButton').style.display = 'none';
             document.getElementById('info').textContent = `Pages: ${pagesCollected}/3`;
-            
+            document.getElementById('crosshair').style.display = 'block'; // Show crosshair
             // Start animation loop
             animate();
         }
@@ -715,6 +731,10 @@ function updatePlayer() {
             // Hide screens
             document.getElementById('gameOverScreen').style.display = 'none';
             document.getElementById('winScreen').style.display = 'none';
+
+        // Show crosshair
+        document.getElementById('crosshair').style.display = 'block';
+
             
             // Reset game state
             pagesCollected = 0;
