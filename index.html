@@ -394,18 +394,57 @@
                 }
             });
             
-            // Mouse movement for desktop
-            if (!isMobile) {
-                document.addEventListener('mousemove', function(event) {
-                    if (!isGameActive) return;
-                    
-                    // Rotate camera based on mouse movement
-                    player.rotation.y -= event.movementX * 0.002;
-                    
-                    // Update camera rotation
-                    camera.rotation.y = player.rotation.y;
-                });
-            }
+// FPS-style mouse look for desktop
+if (!isMobile) {
+    // Request pointer lock when canvas is clicked
+    renderer.domElement.addEventListener('click', function() {
+        if (isGameActive) {
+            renderer.domElement.requestPointerLock = renderer.domElement.requestPointerLock ||
+                                                    renderer.domElement.mozRequestPointerLock ||
+                                                    renderer.domElement.webkitRequestPointerLock;
+            renderer.domElement.requestPointerLock();
+        }
+    });
+    
+    // Mouse movement handler
+    document.addEventListener('mousemove', function(event) {
+        if (!isGameActive) return;
+        
+        // Check if we have pointer lock
+        if (document.pointerLockElement === renderer.domElement ||
+            document.mozPointerLockElement === renderer.domElement ||
+            document.webkitPointerLockElement === renderer.domElement) {
+            
+            // Get mouse movement (with sensitivity applied)
+            const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+            const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+            
+            // Apply sensitivity factor
+            const sensitivity = 0.002;
+            
+            // Update camera rotation
+            player.rotation.y -= movementX * sensitivity;
+            
+            // Apply vertical look (up/down)
+            player.rotation.x -= movementY * sensitivity;
+            
+            // Clamp vertical rotation to prevent flipping
+            player.rotation.x = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, player.rotation.x));
+            
+            // Apply rotation to camera
+            camera.rotation.copy(player.rotation);
+        }
+    });
+    
+    // Handle pointer lock change
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+    document.addEventListener('mozpointerlockchange', onPointerLockChange);
+    document.addEventListener('webkitpointerlockchange', onPointerLockChange);
+    
+    function onPointerLockChange() {
+        // Nothing specific needed here, but we could add UI indicators
+    }
+}
         }
         
         // Set up joysticks for mobile
@@ -528,48 +567,57 @@
             }
         }
         
-        // Update player position and rotation
-        function updatePlayer() {
-            // Update rotation from right joystick or mouse
-            if (isMobile) {
-                player.rotation.y += controls.lookX * 0.05;
-            }
-            
-            // Update camera rotation
-            camera.rotation.y = player.rotation.y;
-            
-            // Calculate movement direction
-            const direction = new THREE.Vector3(controls.moveX, 0, controls.moveZ);
-            
-            // Only apply movement if there's input
-            if (direction.length() > 0) {
-                // Normalize direction to prevent faster diagonal movement
-                direction.normalize();
-                
-                // Rotate direction based on player rotation
-                direction.applyEuler(new THREE.Euler(0, player.rotation.y, 0));
-                
-                // Apply movement
-                player.position.x += direction.x * player.speed;
-                player.position.z += direction.z * player.speed;
-            }
-            
-            // Keep player within bounds
-            const maxRadius = 40;
-            const distanceFromCenter = Math.sqrt(
-                player.position.x * player.position.x + 
-                player.position.z * player.position.z
-            );
-            
-            if (distanceFromCenter > maxRadius) {
-                const angle = Math.atan2(player.position.z, player.position.x);
-                player.position.x = Math.cos(angle) * maxRadius;
-                player.position.z = Math.sin(angle) * maxRadius;
-            }
-            
-            // Update camera position
-            camera.position.copy(player.position);
-        }
+// Update player position and rotation
+function updatePlayer() {
+    // Update rotation from right joystick (mobile only)
+    if (isMobile) {
+        player.rotation.y += controls.lookX * 0.05;
+    }
+    
+    // Update camera rotation to match player
+    camera.rotation.copy(player.rotation);
+    
+    // Get direction vectors based on camera orientation
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    forward.y = 0; // Keep movement on the horizontal plane
+    forward.normalize();
+    
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    right.y = 0; // Keep movement on the horizontal plane
+    right.normalize();
+    
+    // Calculate movement direction
+    const moveDirection = new THREE.Vector3(0, 0, 0);
+    
+    if (controls.moveZ < 0) moveDirection.add(forward);
+    if (controls.moveZ > 0) moveDirection.sub(forward);
+    if (controls.moveX > 0) moveDirection.add(right);
+    if (controls.moveX < 0) moveDirection.sub(right);
+    
+    // Normalize movement direction if moving diagonally
+    if (moveDirection.length() > 0) {
+        moveDirection.normalize();
+        
+        // Apply movement with proper speed
+        player.position.add(moveDirection.multiplyScalar(player.speed));
+    }
+    
+    // Keep player within bounds
+    const maxRadius = 40;
+    const distanceFromCenter = Math.sqrt(
+        player.position.x * player.position.x + 
+        player.position.z * player.position.z
+    );
+    
+    if (distanceFromCenter > maxRadius) {
+        const angle = Math.atan2(player.position.z, player.position.x);
+        player.position.x = Math.cos(angle) * maxRadius;
+        player.position.z = Math.sin(angle) * maxRadius;
+    }
+    
+    // Update camera position
+    camera.position.copy(player.position);
+}
         
         // Check for page collection
         function checkPages() {
